@@ -9,9 +9,7 @@ services:
       - "3000:3000"
     volumes:
       - ./backend:/app
-    environment:
-      - DATABASE_URL=file:./dev.db
-      - PORT=3000
+    env_file: ./backend/.env
     depends_on:
       - redis
 
@@ -25,6 +23,7 @@ services:
     build:
       context: ./frontend
     container_name: desafio-frontend
+    env_file: ./frontend/.env
     ports:
       - "5173:80"
     depends_on:
