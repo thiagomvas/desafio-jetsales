@@ -1,0 +1,31 @@
+version: "3.9"
+
+services:
+  backend:
+    build:
+      context: ./backend
+    container_name: desafio-backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=file:./dev.db
+      - PORT=3000
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:7-alpine
+    container_name: desafio-redis
+    ports:
+      - "6379:6379"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: desafio-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
