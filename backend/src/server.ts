@@ -1,6 +1,7 @@
 import app from './app';
 import dotenv from 'dotenv';
 import { logger } from './utils/logger';
+import { notificationWorker } from './workers/notificationWorker';
 
 dotenv.config();
 

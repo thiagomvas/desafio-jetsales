@@ -10,8 +10,24 @@ services:
     volumes:
       - ./backend:/app
     env_file: ./backend/.env
+    environment:
+      REDIS_HOST: redis
     depends_on:
       - redis
+    command: npm run dev
+
+  notif-worker:
+    build:
+      context: ./backend
+    container_name: desafio-worker
+    volumes:
+      - ./backend:/app
+    env_file: ./backend/.env
+    environment:
+      REDIS_HOST: redis
+    depends_on:
+      - redis
+    command: npm run worker
 
   redis:
     image: redis:7-alpine
