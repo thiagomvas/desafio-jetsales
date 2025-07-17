@@ -1,5 +1,8 @@
 import prisma from "../../prisma/client";
 import { Request, Response } from "express";
+import { AuthRequest } from '../middleware/auth'
+
+
 
 export const getTasks = async (req: Request, res: Response) => {
   try {
@@ -11,11 +14,16 @@ export const getTasks = async (req: Request, res: Response) => {
   }
 };
 
-export const createTask = async (req: Request, res: Response) => {
-  const { title, description } = req.body;
+export const createTask = async (req: AuthRequest, res: Response) => {
+  const { title, description, dueDate } = req.body;
+  const userId = req.userId;
 
   if (!title || !description) {
     return res.status(400).json({ error: "Title and description are required." });
+  }
+
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required." });
   }
 
   try {
@@ -23,6 +31,9 @@ export const createTask = async (req: Request, res: Response) => {
       data: {
         title,
         description,
+        userId, // associar ao usuário autenticado
+        completed: false, // padrão para novas tarefas
+        dueDate: dueDate ? new Date(dueDate) : null, // converter para Date se fornecido
       },
     });
     res.status(201).json(newTask);
@@ -32,7 +43,8 @@ export const createTask = async (req: Request, res: Response) => {
   }
 };
 
-export const updateTask = async (req: Request, res: Response) => {
+
+export const updateTask = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   const { title, description } = req.body;
 
@@ -52,7 +64,7 @@ export const updateTask = async (req: Request, res: Response) => {
   }
 };
 
-export const patchTask = async (req: Request, res: Response) => {
+export const patchTask = async (req: AuthRequest, res: Response) => {
     const { id } = req.params;
     const { title, description } = req.body;
     
@@ -71,7 +83,7 @@ export const patchTask = async (req: Request, res: Response) => {
     }
 }
 
-export const deleteTask = async (req: Request, res: Response) => {
+export const deleteTask = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
 
   try {
