@@ -12,7 +12,7 @@ export function authenticateToken(req: AuthRequest, res: Response, next: NextFun
 
   if (!token) return res.status(401).json({ message: 'Token missing' })
 
-  jwt.verify(token, JWT_SECRET, (err, decoded: any) => {
+  jwt.verify(token, JWT_SECRET, (err: any, decoded: any) => {
     if (err) return res.status(403).json({ message: 'Invalid token' })
     req.userId = decoded.id
     next()

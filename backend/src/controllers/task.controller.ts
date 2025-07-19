@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth'
 import redis from "../utils/redis";
 import { logger } from "../utils/logger";
 import { notificationQueue } from "../queues/notificationQueue";
+import { log } from "console";
 
 const TASKS_CACHE_KEY = "tasks_cache";
 const REMIND_EARLIER_TIME = 5 * 60 * 1000; // 5 minutos em milisegundos
@@ -25,6 +26,31 @@ export const getTasks = async (req: Request, res: Response) => {
   } catch (error) {
     logger.error("TaskController", "Error fetching tasks", error as Error);
     res.status(500).json({ error: "An error occurred while fetching tasks." });
+  }
+};
+
+export const getTasksForUser = async (req: AuthRequest, res: Response) => {
+  const userId = req.userId;
+  if (!userId) {
+    return res.status(400).json({ error: "User ID is required." });
+  }
+  try {
+    const cache = await redis.get(`${TASKS_CACHE_KEY}_${userId}`);
+    if (cache) {
+      const tasks = JSON.parse(cache);
+      logger.info("TaskController", `Returned tasks for user ${userId} from cache`);
+      return res.json(tasks);
+    }
+    const tasks = await prisma.task.findMany({
+      where: { userId: userId },
+      orderBy: { dueDate: 'asc' },
+    });
+    await redis.set(`${TASKS_CACHE_KEY}_${userId}`, JSON.stringify(tasks), "EX", 60);
+    logger.info("TaskController", `Returned tasks for user ${userId} from DB and cached`);
+    return res.json(tasks);
+  } catch (error) {
+    logger.error("TaskController", `Error fetching tasks for user ${userId}`, error as Error);
+    res.status(500).json({ error: "An error occurred while fetching tasks for the user." });
   }
 };
 
@@ -52,16 +78,29 @@ export const createTask = async (req: AuthRequest, res: Response) => {
     });
 
     await redis.del(TASKS_CACHE_KEY);
+    await redis.del(`${TASKS_CACHE_KEY}_${userId}`);
     logger.info("TaskController", `Created new task with id ${newTask.id} and invalidated cache`);
 
-    if(newTask.dueDate) {
-      await notificationQueue.add("task_reminder", {
-        taskId: newTask.id,
-        userId: userId,
-        dueDate: newTask.dueDate,
-      }, {
-        delay: new Date(newTask.dueDate).getTime() - Date.now() - REMIND_EARLIER_TIME,
-      })
+    if (newTask.dueDate) {
+      console.log("Current time:", Date.now());
+      console.log("Current time as iso:", new Date().toISOString());
+      
+      console.log("Due date time:", newTask.dueDate.getTime());
+      console.log("Due date as ISO string:", newTask.dueDate.toISOString());
+
+
+      const delay = newTask.dueDate.getTime() - Date.now() - REMIND_EARLIER_TIME;
+      logger.info("TaskController", `Calculated delay for task reminder: ${delay}ms`);
+      if (delay > 0) {
+        await notificationQueue.add("task_reminder", {
+          taskId: newTask.id,
+          userId: userId,
+          dueDate: newTask.dueDate,
+        }, {
+          delay,
+        });
+        logger.info("NotificationQueue", `Added notification job for task id ${newTask.id} with delay ${delay}ms`);
+      }
     }
 
     res.status(201).json(newTask);
@@ -85,11 +124,10 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
       data: { title, description, dueDate: dueDate ? new Date(dueDate) : undefined },
     });
 
-    // Remove cache
     await redis.del(TASKS_CACHE_KEY);
+    await redis.del(`${TASKS_CACHE_KEY}_${req.userId}`);
     logger.info("TaskController", `Updated task id ${id} and invalidated cache`);
 
-    // Remove job antigo da fila se existir
     const existingJobs = await notificationQueue.getJobs(['delayed', 'waiting']);
     for (const job of existingJobs) {
       if (job.data.taskId === updatedTask.id) {
@@ -98,11 +136,10 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
       }
     }
 
-    // Adiciona novo job se dueDate válido
     if (updatedTask.dueDate) {
       const delay = updatedTask.dueDate.getTime() - Date.now() - REMIND_EARLIER_TIME;
       if (delay > 0) {
-        await notificationQueue.add('taskReminder', { taskId: updatedTask.id, userId: updatedTask.userId }, { delay });
+        await notificationQueue.add('task_reminder', { taskId: updatedTask.id, userId: updatedTask.userId }, { delay });
         logger.info("NotificationQueue", `Added new notification job for task id ${id} with delay ${delay}ms`);
       }
     }
@@ -114,47 +151,48 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const patchTask = async (req: AuthRequest, res: Response) => {
+export async function patchTask(req: AuthRequest, res: Response) {
   const { id } = req.params;
-  const { title, description, dueDate } = req.body;
+  const { title, description, dueDate, completed } = req.body;
 
-  try {
-    const updatedTask = await prisma.task.update({
-      where: { id: Number(id) },
-      data: {
-        ...(title && { title }),
-        ...(description && { description }),
-        ...(dueDate && { dueDate: new Date(dueDate) }),
-      },
-    });
-
-    await redis.del(TASKS_CACHE_KEY);
-    logger.info("TaskController", `Patched task id ${id} and invalidated cache`);
-
-    // Remove job antigo da fila se existir
-    const existingJobs = await notificationQueue.getJobs(['delayed', 'waiting']);
-    for (const job of existingJobs) {
-      if (job.data.taskId === updatedTask.id) {
-        await job.remove();
-        logger.info("NotificationQueue", `Removed existing notification job for task id ${id}`);
-      }
-    }
-
-    // Adiciona novo job se dueDate válido
-    if (updatedTask.dueDate) {
-      const delay = updatedTask.dueDate.getTime() - Date.now() - REMIND_EARLIER_TIME;
-      if (delay > 0) {
-        await notificationQueue.add('taskReminder', { taskId: updatedTask.id, userId: updatedTask.userId }, { delay });
-        logger.info("NotificationQueue", `Added new notification job for task id ${id} with delay ${delay}ms`);
-      }
-    }
-
-    res.json(updatedTask);
-  } catch (error) {
-    logger.error("TaskController", `Error patching task id ${id}`, error as Error);
-    res.status(500).json({ error: "An error occurred while patching the task." });
+  if (!req.userId) {
+    logger.error("TaskController", "Missing userId in patchTask");
+    return res.status(401).json({ error: "Unauthorized" });
   }
-};
+
+  const updatedTask = await prisma.task.update({
+    where: { id: Number(id) },
+    data: {
+      ...(title !== undefined ? { title } : {}),
+      ...(description !== undefined ? { description } : {}),
+      ...(dueDate !== undefined ? { dueDate: new Date(dueDate) } : {}),
+      ...(completed !== undefined ? { completed } : {}),
+    },
+  });
+
+  await redis.del(TASKS_CACHE_KEY);
+  await redis.del(`${TASKS_CACHE_KEY}_${req.userId}`);
+
+  const jobs = await notificationQueue.getDelayed();
+  for (const job of jobs) {
+    if (Number(job.data.taskId) === updatedTask.id) {
+      await job.remove();
+    }
+  }
+
+  if (updatedTask.dueDate) {
+    const delay = updatedTask.dueDate.getTime() - Date.now() - REMIND_EARLIER_TIME;
+    if (delay > 0) {
+      await notificationQueue.add("task_reminder", {
+        taskId: updatedTask.id,
+        userId: updatedTask.userId,
+      }, { delay });
+    }
+  }
+
+  return res.json(updatedTask);
+}
+
 
 export const deleteTask = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
@@ -163,6 +201,7 @@ export const deleteTask = async (req: AuthRequest, res: Response) => {
     await prisma.task.delete({ where: { id: Number(id) } });
 
     await redis.del(TASKS_CACHE_KEY);
+    await redis.del(`${TASKS_CACHE_KEY}_${req.userId}`);
     logger.info("TaskController", `Deleted task id ${id} and invalidated cache`);
 
     // Remove job antigo da fila se existir

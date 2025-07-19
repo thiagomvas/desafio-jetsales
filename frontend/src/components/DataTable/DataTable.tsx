@@ -1,32 +1,30 @@
-import React from "react";
-import "./DataTable.css";
+type DataRow = Record<string, any> & { _rowId?: string };
 
 type DataTableProps = {
   columns: string[];
-  data: Record<string, any>[];
+  data: DataRow[];
+  renderActions?: (row: DataRow) => React.ReactNode;
 };
 
-const DataTable: React.FC<DataTableProps> = ({ columns, data }) => {
+export default function DataTable({ columns, data, renderActions }: DataTableProps) {
   return (
-    <table className="data-table">
+    <table>
       <thead>
         <tr>
-          {columns.map((col) => (
-            <th key={col}>{col}</th>
-          ))}
+          {columns.map(col => <th key={col}>{col}</th>)}
+          {renderActions && <th>Actions</th>}
         </tr>
       </thead>
       <tbody>
         {data.map((row, i) => (
           <tr key={i} id={row._rowId}>
-            {columns.map((col) => (
+            {columns.map(col => (
               <td key={col}>{row[col]}</td>
             ))}
+            {renderActions && <td>{renderActions(row)}</td>}
           </tr>
         ))}
       </tbody>
     </table>
   );
-};
-
-export default DataTable;
+}

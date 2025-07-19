@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import styles from '../styles/DashboardPage.module.css'; 
 import { api } from '../api'; // Your API client
 import DataTable from '../components/DataTable/DataTable';
+import { useNotificationPopup } from '../hooks/useNotificationPopup';
 
 type Task = {
   id: number;
@@ -27,6 +28,38 @@ export default function DashboardPage() {
   const [dueDate, setDueDate] = useState('');
   const [formVisible, setFormVisible] = useState(false);
 
+  useNotificationPopup(user?.id ? String(user.id) : "");
+
+  function localDateTimeToUtcIso(dateTimeLocal?: string): string | undefined {
+    if (!dateTimeLocal) return undefined;
+    const [date, time = '00:00:00'] = dateTimeLocal.split('T');
+    const [year, month, day] = date.split('-').map(Number);
+    const [hour = 0, minute = 0, second = 0] = time.split(':').map(Number);
+    // Create a Date object in local timezone
+    const localDate = new Date(year, month - 1, day, hour, minute, second);
+    return localDate.toISOString();
+  }
+  
+
+  const markTaskCompleted = async (taskId: number) => {
+    try {
+      await api.patchTask(taskId, { completed: true });
+      fetchTasks(); // Refresh task list
+    } catch {
+      setError('Failed to mark task as completed');
+    }
+  };
+  const deleteTask = async (taskId: number) => {
+    try {
+      await api.deleteTask(taskId);
+      setTasks(prevTasks => prevTasks.filter(task => task.id !== taskId));
+    } catch {
+      setError('Failed to delete task');
+    }
+  };
+  
+  
+  
   const fetchUser = async () => {
     try {
       const data = await api.getCurrentUser();
@@ -40,7 +73,7 @@ export default function DashboardPage() {
     setLoading(true);
     setError('');
     try {
-      const data = await api.fetchTasks();
+      const data = await api.fetchTasksForUser();
       setTasks(data);
     } catch {
       setError('Failed to load tasks');
@@ -67,7 +100,7 @@ export default function DashboardPage() {
       await api.createTask({
         title,
         description,
-        dueDate: dueDate || null,
+        dueDate: localDateTimeToUtcIso(dueDate),
       });
 
       setTitle('');
@@ -110,13 +143,15 @@ export default function DashboardPage() {
 
   const columns = ['ID', 'Title', 'Description', 'Due Date', 'Completed'];
 
-  const data = tasks.sort(task => task.completed ? 0 : 1).map(task => ({
-    ID: task.id,
-    Title: task.title,
-    Description: task.description,
-    'Due Date': task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-',
-    Completed: task.completed ? 'Yes' : 'No',
-    _rowId: `row-${task.id}`,
+  const data = [...tasks]
+    .sort((a, b) => Number(a.completed) - Number(b.completed))
+    .map(task => ({
+      ID: task.id,
+      Title: task.title,
+      Description: task.description,
+      'Due Date': task.dueDate ? new Date(task.dueDate).toLocaleDateString() : '-',
+      Completed: task.completed ? 'Yes' : 'No',
+      _rowId: `row-${task.id}`,
   }));
   
 
@@ -130,8 +165,7 @@ export default function DashboardPage() {
 
   return (
     <div className={`${styles.container} ${styles.fadeIn}`}>
-      <h1>Dashboard</h1>
-      {user && <p>Welcome, <strong>{user.name}</strong>!</p>}
+      <h1>{user && <p>Welcome, <strong>{user.name}</strong>!</p>}</h1>
 
       <section className={styles.analysis}>
         <p>You have completed <strong>{completedCount}</strong> out of <strong>{totalCount}</strong> tasks.</p>
@@ -144,7 +178,7 @@ export default function DashboardPage() {
               <li
                 key={task.id}
                 onClick={() => scrollToTask(task.id)}
-                style={{ cursor: 'pointer', color: 'var(--primary)' }}
+                style={{ cursor: 'pointer', color: getDueColor(task.dueDate) }}
                 title="Click to scroll to task"
               >
                 {task.title} - due {new Date(task.dueDate!).toLocaleDateString()}
@@ -183,7 +217,7 @@ export default function DashboardPage() {
             required
           />
           <input
-            type="date"
+            type="datetime-local"
             value={dueDate}
             onChange={e => setDueDate(e.target.value)}
             className={styles.input}
@@ -195,7 +229,22 @@ export default function DashboardPage() {
 
       {loading && <p>Loading tasks...</p>}
       
-      <DataTable columns={columns} data={data} />
+      <DataTable
+        columns={columns}
+        data={data}
+        renderActions={(row) => (
+          <>
+            {row.Completed === 'No' && (
+              <button onClick={() => markTaskCompleted(row.ID)}>Mark as done</button>
+            )}
+            <button onClick={() => deleteTask(row.ID)} style={{ marginLeft: '0.5rem' }}>
+              Delete
+            </button>
+          </>
+        )}
+      />
+
+
     </div>
   );
 }

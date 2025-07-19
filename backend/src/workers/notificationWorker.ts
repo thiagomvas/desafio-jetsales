@@ -14,6 +14,15 @@ export const notificationWorker = new Worker('notifications', async job => {
 
     // Logica de notificação
     console.log(`Notify user ${task.User.email} about task ${task.title} due at ${task.dueDate}`)
+    const payload = JSON.stringify({
+      userId,
+      taskId,
+      title: task.title,
+      dueDate: task.dueDate,
+    })
+    console.log(`Publishing to Redis channel notification:`, payload);
+
+    await redis.publish(`notification`, payload)
   }
 }, {
   connection: redis,
@@ -46,4 +55,4 @@ notificationWorker.on('ready', () => {
     } catch (error) {
       logger.error('NotificationWorker', 'Error fetching delayed jobs', error as Error)
     }
-  }, 60 * 1000) // every 60 seconds
+  }, 10 * 1000) // every 60 seconds

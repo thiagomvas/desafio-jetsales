@@ -14,10 +14,10 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const { user } = await api.login({ email, password });
+      await api.login({ email, password });
       setRedirect(true); // trigger navigation
-    } catch (err: any) {
-      setError(err.message || 'Login failed');
+    } catch (err) {
+      setError((err instanceof Error ? err.message : 'Login failed'));
     }
   };
 

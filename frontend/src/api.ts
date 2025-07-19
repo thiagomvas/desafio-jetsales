@@ -29,12 +29,28 @@ export const api = {
     }),
 
   fetchTasks: () => request<any[]>('/tasks'),
+  fetchTasksForUser: () =>
+    request<any[]>('/tasks/user'),
   getCurrentUser: () =>
     request<{ id: number; name: string; email: string }>('/auth/me'),
 
   createTask: (data: { title: string; description?: string; dueDate?: string }) =>
     request('/tasks', {
       method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  updateTask: (id: number, data: { title?: string; description?: string; dueDate?: string }) =>
+    request(`/tasks/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  deleteTask: (id: number) =>
+    request(`/tasks/${id}`, {
+      method: 'DELETE',
+    }),
+  patchTask: (id: number, data: { completed?: boolean }) =>
+    request(`/tasks/${id}`, {
+      method: 'PATCH',
       body: JSON.stringify(data),
     }),
 };
