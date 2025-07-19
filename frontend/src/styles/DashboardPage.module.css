@@ -1,0 +1,103 @@
+.container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 1rem;
+}
+
+/* Fade in animation */
+.fadeIn {
+  animation: fadeInAnim 0.5s ease forwards;
+}
+@keyframes fadeInAnim {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.toggleButton {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  margin-bottom: 1rem;
+  transition: background-color 0.3s ease;
+  font-weight: 600;
+}
+.toggleButton:hover {
+  background-color: var(--primary-dark, #2563eb); /* fallback if you want */
+}
+
+/* Collapsible form container */
+.collapsibleForm {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, padding 0.4s ease;
+  padding: 0 0;
+  margin-bottom: 1rem;
+}
+.collapsibleForm.open {
+  max-height: 500px; /* enough to fit form */
+  padding: 1rem 0;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.input, .textarea {
+  background-color: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--muted);
+  border-radius: 6px;
+  padding: 0.5rem;
+  font-size: 1rem;
+  transition: border-color 0.2s ease;
+}
+
+.input:focus, .textarea:focus {
+  border-color: var(--primary);
+  outline: none;
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.button {
+  background-color: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 0.6rem 1.2rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+}
+.button:hover {
+  background-color: var(--primary-dark, #2563eb);
+}
+
+.error {
+  color: #f87171; /* Tailwind red-400 */
+  font-weight: 600;
+  margin-top: 0.5rem;
+}
+
+
+.analysis {
+  margin: 1rem 0;
+  font-size: 1.1rem;
+}
+
+.analysis ul {
+  margin: 0.5rem 0 1rem 1.5rem;
+  padding: 0;
+}
+
+.analysis li {
+  margin-bottom: 0.3rem;
+}

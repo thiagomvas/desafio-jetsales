@@ -1,61 +1,26 @@
-import { useEffect, useState } from 'react'
-import './App.css'
-import DataTable from './components/DataTable/DataTable'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import ProtectedRoute from './components/ProtectedRoute';
+import LoginPage from './pages/LoginPage';
+import DashboardPage from './pages/DashboardPage';
 
-const backendUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-
-interface Task {
-  id: string
-  title: string
-  description: string
-  createdAt: string 
-  updatedAt: string
-  dueDate?: string
-  completed: boolean
-}
-
-function App() {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch(`${backendUrl}/tasks`)
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`)
-        return res.json()
-      })
-      .then(data => {
-        setTasks(data)
-        setLoading(false)
-      })
-      .catch(err => {
-        setError(err.message)
-        setLoading(false)
-      })
-  }, [])
-
+export default function App() {
   return (
-    <>
-      <DataTable
-        columns={['ID', 'Title', 'Description', 'Completed', 'Due Date', 'User ID', 'Created At', 'Updated At']}
-        data={tasks.map(task => ({
-          ID: task.id,
-          Title: task.title,
-          Description: task.description,
-          Completed: task.completed ? '✅' : '❌',
-          'Due Date': task.dueDate ? new Date(task.dueDate).toLocaleString() : 'N/A',
-          'User ID': (task as any).userId, // if userId is present
-          'Created At': new Date(task.createdAt).toLocaleString(),
-          'Updated At': new Date(task.updatedAt).toLocaleString(),
-        }))}
-      />
+    <BrowserRouter>
+      <Routes>
+        <Route path="/login" element={<LoginPage />} />
 
-      {loading && <p>Loading tasks...</p>}
-      {error && <p>Error loading tasks: {error}</p>}
-        
-    </>
-  )
+        <Route
+          path="/"
+          element={
+            <ProtectedRoute>
+              <DashboardPage />
+            </ProtectedRoute>
+          }
+        />
+
+        {/* Redirect any unknown routes to login */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
 }
-
-export default App

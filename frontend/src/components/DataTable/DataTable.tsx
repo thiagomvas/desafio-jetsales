@@ -18,7 +18,7 @@ const DataTable: React.FC<DataTableProps> = ({ columns, data }) => {
       </thead>
       <tbody>
         {data.map((row, i) => (
-          <tr key={i}>
+          <tr key={i} id={row._rowId}>
             {columns.map((col) => (
               <td key={col}>{row[col]}</td>
             ))}
