@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from 'react';
 import styles from '../styles/DashboardPage.module.css'; 
 import { api } from '../api'; // Your API client
@@ -87,28 +88,30 @@ export default function DashboardPage() {
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
+  
     if (!title || !description) {
       setError('Title and description are required');
       return;
     }
-
+  
     try {
       await api.createTask({
         title,
         description,
         dueDate: localDateTimeToUtcIso(dueDate),
       });
-
+  
       setTitle('');
       setDescription('');
       setDueDate('');
       setFormVisible(false);
       fetchTasks();
-    } catch {
-      setError('Failed to create task');
+    } catch (error: any) {
+      console.error('Error creating task:', error);
+      setError(error.error || error.message || 'Failed to add task');
     }
   };
+  
 
   // --- Analysis helpers ---
 

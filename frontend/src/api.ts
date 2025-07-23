@@ -16,7 +16,8 @@ async function request<T>(
 
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.message || 'API request failed');
+    throw new Error(error.error || error.message || 'API request failed');
+
   }
 
   return res.json();
