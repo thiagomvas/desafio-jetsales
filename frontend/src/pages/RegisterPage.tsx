@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import styles from '../styles/LoginPage.module.css';
 import { api } from '../api';
-import { Navigate, Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 
-export default function LoginPage() {
+export default function RegisterPage() {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -14,10 +15,10 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await api.login({ email, password });
-      setRedirect(true); // trigger navigation
+      await api.register({ name, email, password });
+      setRedirect(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      setError(err instanceof Error ? err.message : 'Registration failed');
     }
   };
 
@@ -27,8 +28,18 @@ export default function LoginPage() {
 
   return (
     <div className={styles.container}>
-      <h2 className={styles.title}>Login</h2>
+      <h2 className={styles.title}>Register</h2>
       <form onSubmit={handleSubmit}>
+        <label htmlFor="name" className={styles.label}>Name</label>
+        <input
+          id="name"
+          type="text"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          required
+          className={styles.input}
+        />
+
         <label htmlFor="email" className={styles.label}>Email</label>
         <input
           id="email"
@@ -51,13 +62,12 @@ export default function LoginPage() {
 
         {error && <div className={styles.error}>{error}</div>}
 
-        <button type="submit" className={styles.button}>Login</button>
+        <button type="submit" className={styles.button}>Register</button>
       </form>
-
       <p style={{ marginTop: '1rem' }}>
-        Don't have an account?{' '}
+        Already have an account?{' '}
         <Link to="/register" className={styles.link}>
-          Register here
+          Login
         </Link>
       </p>
     </div>

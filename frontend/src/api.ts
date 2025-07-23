@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 async function request<T>(
@@ -24,6 +25,11 @@ async function request<T>(
 export const api = {
   login: (data: { email: string; password: string }) =>
     request<{ user: any }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  register: (data: {name: string; email: string; password: string;}) => 
+    request<{ user: any }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(data),
     }),
