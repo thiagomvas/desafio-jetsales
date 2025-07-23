@@ -62,6 +62,24 @@ export const createTask = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ error: "Title and description are required." });
   }
 
+  if (typeof title !== 'string' || title.trim().length < 3 || title.length > 100) {
+    return res.status(400).json({ error: "Title must be a string between 3 and 100 characters." });
+  }
+
+  if (typeof description !== 'string' || description.trim().length < 5 || description.length > 500) {
+    return res.status(400).json({ error: "Description must be between 5 and 500 characters." });
+  }
+
+  if (dueDate) {
+    const due = new Date(dueDate);
+    if (isNaN(due.getTime())) {
+      return res.status(400).json({ error: "Invalid dueDate format." });
+    }
+    if (due.getTime() < Date.now()) {
+      return res.status(400).json({ error: "dueDate must be a future date." });
+    }
+  }
+
   if (!userId) {
     return res.status(400).json({ error: "User ID is required." });
   }
@@ -69,8 +87,8 @@ export const createTask = async (req: AuthRequest, res: Response) => {
   try {
     const newTask = await prisma.task.create({
       data: {
-        title,
-        description,
+        title: title.trim(),
+        description: description.trim(),
         userId,
         completed: false,
         dueDate: dueDate ? new Date(dueDate) : null,
@@ -79,36 +97,25 @@ export const createTask = async (req: AuthRequest, res: Response) => {
 
     await redis.del(TASKS_CACHE_KEY);
     await redis.del(`${TASKS_CACHE_KEY}_${userId}`);
-    logger.info("TaskController", `Created new task with id ${newTask.id} and invalidated cache`);
 
     if (newTask.dueDate) {
-      console.log("Current time:", Date.now());
-      console.log("Current time as iso:", new Date().toISOString());
-      
-      console.log("Due date time:", newTask.dueDate.getTime());
-      console.log("Due date as ISO string:", newTask.dueDate.toISOString());
-
-
       const delay = newTask.dueDate.getTime() - Date.now() - REMIND_EARLIER_TIME;
-      logger.info("TaskController", `Calculated delay for task reminder: ${delay}ms`);
       if (delay > 0) {
         await notificationQueue.add("task_reminder", {
           taskId: newTask.id,
-          userId: userId,
+          userId,
           dueDate: newTask.dueDate,
-        }, {
-          delay,
-        });
-        logger.info("NotificationQueue", `Added notification job for task id ${newTask.id} with delay ${delay}ms`);
+        }, { delay });
       }
     }
 
-    res.status(201).json(newTask);
+    return res.status(201).json(newTask);
   } catch (error) {
     logger.error("TaskController", "Error creating task", error as Error);
-    res.status(500).json({ error: "An error occurred while creating the task." });
+    return res.status(500).json({ error: "An error occurred while creating the task." });
   }
 };
+
 
 export const updateTask = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
@@ -117,6 +124,29 @@ export const updateTask = async (req: AuthRequest, res: Response) => {
   if (!title || !description) {
     return res.status(400).json({ error: "Title and description are required." });
   }
+
+  if (title !== undefined) {
+    if (typeof title !== 'string' || title.trim().length < 3 || title.length > 100) {
+      return res.status(400).json({ error: "Title must be a string between 3 and 100 characters." });
+    }
+  }
+  
+  if (description !== undefined) {
+    if (typeof description !== 'string' || description.trim().length < 5 || description.length > 500) {
+      return res.status(400).json({ error: "Description must be between 5 and 500 characters." });
+    }
+  }
+  
+  if (dueDate !== undefined) {
+    const due = new Date(dueDate);
+    if (isNaN(due.getTime())) {
+      return res.status(400).json({ error: "Invalid dueDate format." });
+    }
+    if (due.getTime() < Date.now()) {
+      return res.status(400).json({ error: "dueDate must be a future date." });
+    }
+  }
+  
 
   try {
     const updatedTask = await prisma.task.update({
@@ -159,6 +189,29 @@ export async function patchTask(req: AuthRequest, res: Response) {
     logger.error("TaskController", "Missing userId in patchTask");
     return res.status(401).json({ error: "Unauthorized" });
   }
+
+  if (title !== undefined) {
+    if (typeof title !== 'string' || title.trim().length < 3 || title.length > 100) {
+      return res.status(400).json({ error: "Title must be a string between 3 and 100 characters." });
+    }
+  }
+  
+  if (description !== undefined) {
+    if (typeof description !== 'string' || description.trim().length < 5 || description.length > 500) {
+      return res.status(400).json({ error: "Description must be between 5 and 500 characters." });
+    }
+  }
+  
+  if (dueDate !== undefined) {
+    const due = new Date(dueDate);
+    if (isNaN(due.getTime())) {
+      return res.status(400).json({ error: "Invalid dueDate format." });
+    }
+    if (due.getTime() < Date.now()) {
+      return res.status(400).json({ error: "dueDate must be a future date." });
+    }
+  }
+  
 
   const updatedTask = await prisma.task.update({
     where: { id: Number(id) },

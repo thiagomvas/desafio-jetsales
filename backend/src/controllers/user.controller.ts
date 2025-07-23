@@ -5,6 +5,7 @@ import redis from '../utils/redis';
 import { logger } from '../utils/logger';
 
 const USERS_CACHE_KEY = 'users_cache';
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export const getUsers = async (req: Request, res: Response) => {
   try {
@@ -56,14 +57,24 @@ export const updateUser = async (req: AuthRequest, res: Response) => {
     return res.status(400).json({ error: 'Name and email are required.' });
   }
 
+  if (typeof name !== 'string' || name.trim().length < 3 || name.length > 100) {
+    return res.status(400).json({ error: 'Name must be between 3 and 100 characters.' });
+  }
+
+  if (typeof email !== 'string' || !emailRegex.test(email)) {
+    return res.status(400).json({ error: 'Invalid email format.' });
+  }
+
   try {
     const updatedUser = await prisma.user.update({
       where: { id: Number(id) },
-      data: { name, email },
+      data: {
+        name: name.trim(),
+        email: email.trim(),
+      },
       select: { id: true, name: true, email: true },
     });
 
-    // Invalidate users cache
     await redis.del(USERS_CACHE_KEY);
     logger.info('UserController', `Updated user id ${id} and invalidated cache`);
 
@@ -78,12 +89,24 @@ export const patchUser = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
   const { name, email } = req.body;
 
+  if (name !== undefined) {
+    if (typeof name !== 'string' || name.trim().length < 3 || name.length > 100) {
+      return res.status(400).json({ error: 'Name must be between 3 and 100 characters.' });
+    }
+  }
+
+  if (email !== undefined) {
+    if (typeof email !== 'string' || !emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format.' });
+    }
+  }
+
   try {
     const updatedUser = await prisma.user.update({
       where: { id: Number(id) },
       data: {
-        ...(name && { name }),
-        ...(email && { email }),
+        ...(name !== undefined ? { name: name.trim() } : {}),
+        ...(email !== undefined ? { email: email.trim() } : {}),
       },
       select: { id: true, name: true, email: true },
     });
@@ -97,6 +120,7 @@ export const patchUser = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: 'An error occurred while patching the user.' });
   }
 };
+
 
 export const deleteUser = async (req: AuthRequest, res: Response) => {
   const { id } = req.params;
