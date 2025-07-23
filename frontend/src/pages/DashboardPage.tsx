@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import styles from '../styles/DashboardPage.module.css'; 
 import { api } from '../api'; // Your API client
 import DataTable from '../components/DataTable/DataTable';
-import { useNotificationPopup } from '../hooks/useNotificationPopup';
 
 type Task = {
   id: number;
@@ -27,8 +26,6 @@ export default function DashboardPage() {
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [formVisible, setFormVisible] = useState(false);
-
-  useNotificationPopup(user?.id ? String(user.id) : "");
 
   function localDateTimeToUtcIso(dateTimeLocal?: string): string | undefined {
     if (!dateTimeLocal) return undefined;
