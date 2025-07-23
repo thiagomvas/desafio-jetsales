@@ -1,29 +1,29 @@
 import { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import styles from '../styles/LoginPage.module.css';
 import { api } from '../api';
-import { Navigate, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [redirect, setRedirect] = useState(false);
+  const { setUser } = useAuth();
+  const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+  setError('');
 
-    try {
-      await api.login({ email, password });
-      setRedirect(true); // trigger navigation
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
-    }
-  };
-
-  if (redirect) {
-    return <Navigate to="/" replace />;
+  try {
+    const authResponse = await api.login({ email, password });
+    setUser(authResponse.user); // update context here
+    navigate('/', { replace: true });
+  } catch (err) {
+    setError(err instanceof Error ? err.message : 'Login failed');
   }
+};
+
 
   return (
     <div className={styles.container}>
